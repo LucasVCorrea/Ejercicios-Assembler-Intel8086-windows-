@@ -1,3 +1,7 @@
+;Dado un vector de 9 números almacenados en el formato BPF c/s de 32 bits,
+;escriba un programa que calcule el máximo, mínimo y el promedio de los números e
+;imprimirlos por pantalla.
+
 global  main    
 extern  printf
 
