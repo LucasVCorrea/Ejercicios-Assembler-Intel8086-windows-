@@ -12,8 +12,10 @@ section .data
     mensajeIngreso      db  "Ingrese (valor entre -99 y 99) para llenar la matriz en la posicion [%hi] [%hi]: ",0
     mensajeOpcion       db  "Ingrese una opcion: ",0
     mensajeElegMatrices db  "Ingrese que matrices quiere sumar (2 matrices) separadas por un espacio: ",0
+    mensajeElegMatricesProducto db  "Ingrese que matrices quiere multiplicar (2 matrices) separadas por un espacio: ",0
     mensajeElegirTransp db  "Ingrese a que matriz quiere calcularle la traspuesta: ",0
     mensajeCambiarElem  db  "Ingrese de que matriz quiere modificar el elemento: ",0
+    mensajeConsultElem  db  "Ingrese de que matriz quiere consultar el elemento: ",0
     mensajeIngPosicion  db  "Ingrese la posicion separada por un espacio: ",0
     mensajeIngresoNuevoValor    db    "Ingrese el nuevo valor a la matriz: ",0
         ;***Errores
@@ -35,6 +37,8 @@ section .data
     mensajeMatrizResult db  "- - - - Resultado - - - -",10,0
     mensajeMatrizChange db  "- - - - Matriz %hi modificada - - - -",10,0
     mensajeMatrizTraspu db  "- - - - Matriz %hi traspuesta - - - -",10,0
+    mensajeMatrizConsul db  "- - - - En la posicion [%hi][%hi] de la matriz %hi hay un %hi - - - -",10,0
+    instanciaExito      db  "Se llego a esta instancia con exito",0
 
         ;***Mensajes constantes
     msjeTitutloOpcion   db  "Se eligio %s",10,0
@@ -60,6 +64,15 @@ section .data
     traspuesta  times   64   dw  0
     matricesArmadas dw  1
     vectorMatrices  times   5   dq  0
+    ;   ---------------------- **Seccion de la parte del producto
+    filaProd1   dw  1
+    coluProd1   dw  1
+    filaProd2   dw  1
+    coluProd2   dw  1
+    celdasLlenas    dq  0
+    contador    dq  0
+    elementoProducto    dw  0
+    ;   ----------------------
         ;***Cosas usadas para la pantalla------------------------------------------------------------------------------------------
     matrizMostrada  dw  1
     
@@ -87,7 +100,7 @@ section .bss
     columnaCambio           resw    1
     nuevoElem               resw    10
     nuevoElementoNum        resw    10
-
+    desplazProducto         resw    1
 ;-------------------------------------------------------------------------------------------------------------------------
     matrizA     times   64  resw    1
     matrizB     times   64  resw    1
@@ -518,11 +531,19 @@ pidoOpcion:
     call    gets
     add     rsp,32
 
-    call    validarOpcion   ;(1 jmp a la suma, 2 jump a la ... 6, jmp endProg con un mensaje)
-    cmp     byte[opcionEsValida],'N'
-    je      errorOpcion
-
-ret
+    cmp     byte[opcionElegida],'1'
+    je      sumarMatrices
+    cmp     byte[opcionElegida],'2'
+    je      productoDosMatrices
+    cmp     byte[opcionElegida],'3'
+    je      hallarTraspuesta
+    cmp     byte[opcionElegida],'4'
+    je      modificarElemento
+    cmp     byte[opcionElegida],'5'
+    je      consultarValor
+    cmp     byte[opcionElegida],'6'
+    je      endProg
+    jmp     errorOpcion
 
 ;************************
 ;*** RUTINAS INTERNAS ***
@@ -666,31 +687,14 @@ printf_newLine:
     je      imprimoCuatro
     cmp     word[matrizMostrada],5
     je      imprimoCinco
-
-validarOpcion:
-    mov     byte[opcionEsValida],'S'
- 
-    cmp     byte[opcionElegida],'1'
-    je      sumarMatrices
-    cmp     byte[opcionElegida],'2'
-    je      productoDosMatrices
-    cmp     byte[opcionElegida],'3'
-    je      hallarTraspuesta
-    cmp     byte[opcionElegida],'4'
-    je      modificarElemento
-    cmp     byte[opcionElegida],'5'
-    je      consultarValor
-    cmp     byte[opcionElegida],'6'
-    je      endProg
-
-    mov     byte[opcionEsValida],'N'
-ret
+    
 sumarMatrices:
     sub     rax,rax
     mov     rdx,tituloSumaMatrices
     call    printf_Titulo_Opcion
 pedidoDeMatrices:
     mov     rdi,0
+
     mov     rcx,mensajeElegMatrices
     sub     rsp,32
     call    printf
@@ -756,10 +760,6 @@ muestroResultado:
     jmp     muestroResultado
 
 
-productoDosMatrices:
-    mov     rdx,tituloProducMatces
-    call    printf_Titulo_Opcion
-    ret
 hallarTraspuesta:
     mov     rdx,tituloHallarTransp
     call    printf_Titulo_Opcion
@@ -826,7 +826,10 @@ finArmadoTraspuesta:
     sub     rbx,rbx
     mov     bx,2
     imul    bx,word[dimensionMatriz]
-    
+ 
+    cmp     byte[opcionElegida],'6'
+    je      terminarElPrograma
+
     mov     rcx,mensajeMatrizTraspu
     mov     rdx,[matrizEleg1]
     sub     rsp,32
@@ -859,7 +862,7 @@ muestroTraspuesta:
 modificarElemento:
     mov     rdx,tituloModificarElem
     call    printf_Titulo_Opcion
-
+pedirMatrizParaModificar:
     mov     rcx,mensajeCambiarElem
     sub     rsp,32
     call    printf
@@ -873,6 +876,8 @@ modificarElemento:
     cmp     byte[estaEnVector],'N'
     je      errorEleccionMatriz
 pedirPosicion:
+    cmp     byte[opcionElegida],'6'
+    je      terminarElPrograma
     mov     rcx,mensajeIngPosicion
     sub     rsp,32
     call    printf
@@ -886,6 +891,8 @@ pedirPosicion:
     call    validarPosicion
     cmp     byte[posicionEsValida],'N'
     je      errorPosicion
+    cmp     byte[opcionElegida],'5'
+    je      mostrarConsulta
 pidoNuevoIngreso:
     sub     rsi,rsi
     mov     rcx,mensajeIngresoNuevoValor
@@ -901,7 +908,8 @@ pidoNuevoIngreso:
     call    validarIngreso
     cmp     byte[ingresoEsValido],'N'
     je      errorNuevoIngreso
-
+    cmp     byte[opcionElegida],'6'
+    je      terminarElPrograma
     sub     rbx,rbx
     sub     rcx,rcx
     mov     cx,[elementoNum]
@@ -967,6 +975,63 @@ errorPosicion:
 consultarValor:
     mov     rdx,tituloConsultarElem
     call    printf_Titulo_Opcion
+pedirMatrizParaConsultar:
+    mov     rcx,mensajeConsultElem
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+
+    mov     rcx,matrizElegidaStr
+    sub     rsp,32
+    call    gets
+    add     rsp,32
+    call    validarMatrizEnVector
+    cmp     byte[estaEnVector],'N'
+    je      errorEleccionMatriz
+pidoPosicionConsulta:
+    cmp     byte[opcionElegida],'6'
+    je      terminarElPrograma
+    mov     rcx,mensajeIngPosicion
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+
+    mov     rcx,posicionCambiarStr
+    sub     rsp,32
+    call    gets
+    add     rsp,32
+
+    call    validarPosicion
+    cmp     byte[posicionEsValida],'N'
+    je      errorPosicion
+    cmp     byte[opcionElegida],'6'
+    je      terminarElPrograma
+    sub     rax,rax
+    sub     rbx,rbx
+    mov     ax,[filaCambio]
+    mov     bx,[columnaCambio]
+    mov     word[fila],ax
+    mov     word[columna],bx
+    call    calculoDesplaz
+mostrarConsulta:
+    sub     rax,rax
+    mov     ax,[matrizEleg1]
+    dec     ax
+    imul    ax,8
+    mov     rsi,[vectorMatrices + rax] 
+
+    mov     rcx,mensajeMatrizConsul
+    mov     rdx,[filaCambio]
+    mov     r8,[columnaCambio]
+    mov     r9,[rsi + rbx]
+    push    r9
+    mov     r9,[matrizEleg1]
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+    pop     r9
+    jmp     gg
+;ACA
     ret
 
 printf_Titulo_Opcion:
@@ -981,6 +1046,7 @@ endProg:
     sub     rsp,32
     call    puts
     add     rsp,32
+terminarElPrograma:
 ret
 validarMatricesEnVector:
     sub     rsi,rsi
@@ -1021,9 +1087,9 @@ validarMatricesEnVector:
     je      errorMatrizNoEsta
     
     mov     byte[estaEnVector],'S'
+    ret
+    ;jmp     finValidarEnVector
 
-finValidarEnVector:
-ret
 validarMatrizEnVector:
     sub     rsi,rsi
     sub     rax,rax
@@ -1051,8 +1117,8 @@ validarMatrizEnVector:
     je      errorMatrizNoEsta2
     mov     byte[estaEnVector],'S'
     
-    jmp     finValidarEnVector
-
+finValidarEnVector:
+ret
 errorEleccionMatrices:
     mov     rcx,msjErrorCantidad
     sub     rsp,32
@@ -1064,7 +1130,13 @@ errorEleccionMatriz:
     sub     rsp,32
     call    printf
     add     rsp,32
-    jmp     pedidoDeMatrizTransp
+    cmp     byte[opcionElegida],'3'
+    je      pedidoDeMatrizTransp
+    cmp     byte[opcionElegida],'4'
+    je      pedirMatrizParaModificar
+    cmp     byte[opcionElegida],'5'
+    je      pedirMatrizParaConsultar
+    
 errorMatrizNoEsta:
     mov     rcx,msjErrorMatNoExiste
     mov     rdx,[cantidadMatricesNum]
@@ -1085,6 +1157,7 @@ printf_newLine_Resultado:
     je      muestroTraspuesta
     cmp     byte[opcionElegida],'4'
     je      muestroCambio
+    ret
 
 errorMatrizNoEsta2:
     mov     rcx,msjErrorTrasp
@@ -1092,7 +1165,13 @@ errorMatrizNoEsta2:
     sub     rsp,32
     call    printf
     add     rsp,32
-    jmp     pedidoDeMatrizTransp
+    cmp     byte[opcionElegida],'3'
+    je      pedidoDeMatrizTransp
+    cmp     byte[opcionElegida],'4'
+    je      pedirMatrizParaModificar
+    cmp     byte[opcionElegida],'5'
+    je      pedirMatrizParaConsultar
+    
 validarPosicion:
     mov     byte[posicionEsValida],'N'
 
@@ -1136,3 +1215,125 @@ calculoDesplazAlterno:
     imul    bx,2
     add     bx,[desplazAlterno]
     ret
+productoDosMatrices:
+    mov     rdx,tituloProducMatces
+    call    printf_Titulo_Opcion
+pedidoMatricesProducto:
+    mov     rdi,0
+
+    mov     rcx,mensajeElegMatricesProducto
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+
+    mov     rcx,matricesElegidasStr
+    sub     rsp,32
+    call    gets
+    add     rsp,32
+
+    call    validarMatricesEnVector
+    cmp     byte[estaEnVector],'N'
+    je      errorEleccionMatrices
+realizoProducto:
+;mov     rcx,debug2
+;mov     rdx,[filaProd1]
+;sub     rsp,32
+;call    printf
+;add     rsp,32
+    mov     rdi,0
+    mov     qword[elementoProducto],0
+    sub     rbx,rbx
+    sub     rdx,rdx
+    ;mov     dx,[coludimensionNum]
+    ;inc     dx
+
+
+    mov     rdx,[vectorMatrices + rax]
+    mov     r8,[vectorMatrices + rsi]
+CalcDesplazamientoProd:
+
+    
+    cmp     word[coluProd1],4   ;tambien hacer variable
+    je      copioCeldaEnMatrizResultado
+
+    cmp     qword[celdasLlenas],3
+    je      bajoFilaProducto
+    cmp     rdi,18      ;hacer esto variable (18 porque es 2*9)
+    je      muestroResultadoProducto
+
+    mov     bx,[filaProd1]
+    dec     bx
+    ;imul    bx,[coludimensionNum]
+    imul    bx,6
+    mov     [desplazProducto],bx
+
+    mov     bx,[coluProd1]
+    dec     bx
+    imul    bx,2
+    add     bx,[desplazProducto]
+
+    mov     ax,[filaProd2]
+    dec     ax
+    ;imul    ax,[coludimensionNum]
+    imul    ax,6
+    mov     [desplazAlterno],ax
+
+    mov     ax,[coluProd2]
+    dec     ax
+    imul    ax,2
+    add     ax,[desplazAlterno]
+
+;mov     rcx,debug
+;mov     rdx,[r8 + rax]
+;sub     rsp,32
+;call    printf
+;add     rsp,32
+    mov     rcx,[rdx + rbx]
+    imul    rcx,[r8 + rax]
+    add     [elementoProducto],rcx
+
+    inc     word[coluProd1]
+    inc     word[filaProd2]
+    jmp     CalcDesplazamientoProd
+copioCeldaEnMatrizResultado:
+    mov     ax,[elementoProducto]
+    mov     [matrizR + rdi],ax
+    add     rdi,2   ;por la word
+    inc     qword[celdasLlenas]
+    mov     word[coluProd1],1
+    mov     word[filaProd2],1
+    inc     word[coluProd2]
+    mov     word[elementoProducto],0
+    jmp     CalcDesplazamientoProd
+bajoFilaProducto:
+    mov     word[elementoProducto],0
+
+    inc     word[filaProd1]
+    mov     word[coluProd1],1
+    mov     word[coluProd2],1
+    mov     word[filaProd2],1
+    mov     rsi,0
+    mov     qword[celdasLlenas],0
+    jmp     CalcDesplazamientoProd
+muestroResultadoProducto:
+    cmp     rsi,18
+    je      chau
+    cmp     qword[contador],3
+    je      imprimoLineaBlanca
+    mov     rcx,debug
+    mov     rdx,[matrizR + rsi]
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+    add     rsi,2
+    add     qword[contador],1
+    jmp     muestroResultadoProducto
+imprimoLineaBlanca:
+    mov     rcx,newLine
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+    mov     qword[contador],0
+    jmp     muestroResultadoProducto
+chau:
+ret
