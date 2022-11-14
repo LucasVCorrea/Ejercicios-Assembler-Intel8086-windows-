@@ -26,6 +26,7 @@ section .data
     msjErrorMatNoExiste db  "Una de las matrices elegidas no fue completada. Solo se llenaron de 1 a %hi matrices",10,0
     msjErrorTrasp       db  "La matriz elegida no fue completada. Solo se llenaron de 1 a %hi matrices",10,0
     msjErrorPosicion    db  "La posicion ingresada es invalda. ",10,0
+    mensajeNoCuadradas  db  "Las matrices ingresadas no son cuadradas. Esta opcion no esta disponible",10,0
         ;***Opciones
     msjOpciones         db  "======================================",10,"Opciones:",10," 1- suma de matrices ",10, 
                         db  " 2- producto de matrices",10," 3- mostrar la traspuesta",10," 4- modificar un elemento de la matriz",10,
@@ -70,8 +71,9 @@ section .data
     filaProd2   dw  1
     coluProd2   dw  1
     celdasLlenas    dq  0
-    contador    dq  0
+    contador    dw  0
     elementoProducto    dw  0
+    
     ;   ----------------------
         ;***Cosas usadas para la pantalla------------------------------------------------------------------------------------------
     matrizMostrada  dw  1
@@ -85,6 +87,7 @@ section .bss
     desplazAlterno          resw    1
     desplazTrasp            resw    1
     dimensionStr            resb    10
+    dimensionBytes          resw    1
     filadimensionNum        resw    1
     coludimensionNum        resw    1
     dimensionMatriz         resw    1
@@ -120,6 +123,7 @@ section .bss
     estaEnVector        resb    1
     posicionEsValida    resb    1
     nuevoIngresoEsValido resb   1
+    sonCuadradas        resb    1
 section .text
 
 main:
@@ -170,7 +174,13 @@ pidoDimension:
     inc     word[finColumna]
     imul    ax,bx
     mov     [dimensionMatriz],ax
-
+    imul    ax,2
+    mov     [dimensionBytes],ax
+;mov     rcx,debug
+;mov     rdx,[dimensionBytes]
+;sub     rsp,23
+;call    printf
+;add     rsp,32
 
 finDeFila:
     mov     ax,word[finColumna]
@@ -708,15 +718,13 @@ pedidoDeMatrices:
     call    validarMatricesEnVector
     cmp     byte[estaEnVector],'N'
     je      errorEleccionMatrices
-
-realizoSuma:
-    sub     rbx,rbx
-    mov     bx,2
-    imul    bx,word[dimensionMatriz]
-    cmp     rdi,rbx
-    je      finSuma
     mov     rbx,[vectorMatrices + rax]
     mov     rdx,[vectorMatrices + rsi]
+realizoSuma:
+
+    cmp     di,[dimensionBytes]
+    je      finSuma
+
     push    rax
     mov     rax,[rbx + rdi]
     add     rax,[rdx + rdi]
@@ -1087,8 +1095,7 @@ validarMatricesEnVector:
     je      errorMatrizNoEsta
     
     mov     byte[estaEnVector],'S'
-    ret
-    ;jmp     finValidarEnVector
+    jmp     finValidarEnVector
 
 validarMatrizEnVector:
     sub     rsi,rsi
@@ -1124,7 +1131,11 @@ errorEleccionMatrices:
     sub     rsp,32
     call    puts
     add     rsp,32
+
+    cmp     byte[opcionElegida],'2'
+    je      pedidoMatricesProducto
     jmp     pedidoDeMatrices
+
 errorEleccionMatriz:
     mov     rcx,msjErrorCantidad
     sub     rsp,32
@@ -1143,6 +1154,8 @@ errorMatrizNoEsta:
     sub     rsp,32
     call    printf
     add     rsp,32
+    cmp     byte[opcionElegida],'2'
+    je      pedidoMatricesProducto
     jmp     pedidoDeMatrices
 
 printf_newLine_Resultado:
@@ -1153,6 +1166,8 @@ printf_newLine_Resultado:
     mov     word[pivote],0
     cmp     byte[opcionElegida],'1'
     je      muestroResultado
+    cmp     byte[opcionElegida],'2'
+    je      muestroMatrizResultadoProd
     cmp     byte[opcionElegida],'3'
     je      muestroTraspuesta
     cmp     byte[opcionElegida],'4'
@@ -1218,8 +1233,13 @@ calculoDesplazAlterno:
 productoDosMatrices:
     mov     rdx,tituloProducMatces
     call    printf_Titulo_Opcion
-pedidoMatricesProducto:
+    call    evaluarCuadradas
+    cmp     byte[sonCuadradas],'N'
+    je      errorNoSonCuadradas
     mov     rdi,0
+
+pedidoMatricesProducto:
+   ; mov     rdi,0
 
     mov     rcx,mensajeElegMatricesProducto
     sub     rsp,32
@@ -1235,36 +1255,33 @@ pedidoMatricesProducto:
     cmp     byte[estaEnVector],'N'
     je      errorEleccionMatrices
 realizoProducto:
-;mov     rcx,debug2
-;mov     rdx,[filaProd1]
-;sub     rsp,32
-;call    printf
-;add     rsp,32
-    mov     rdi,0
     mov     qword[elementoProducto],0
     sub     rbx,rbx
     sub     rdx,rdx
-    ;mov     dx,[coludimensionNum]
-    ;inc     dx
 
+    mov     rdx,[vectorMatrices + rax]  ;tratar de usar rbx y rdx como en la suma
+    mov     r8,[vectorMatrices + rsi]   ;posible bug por estar usando el r8
 
-    mov     rdx,[vectorMatrices + rax]
-    mov     r8,[vectorMatrices + rsi]
 CalcDesplazamientoProd:
 
-    
-    cmp     word[coluProd1],4   ;tambien hacer variable
+    sub     rax,rax
+    mov     ax,[coludimensionNum]
+    inc     ax
+    cmp     word[coluProd1],ax   
     je      copioCeldaEnMatrizResultado
 
-    cmp     qword[celdasLlenas],3
+    mov     ax,[coludimensionNum]
+    cmp     qword[celdasLlenas],rax
     je      bajoFilaProducto
-    cmp     rdi,18      ;hacer esto variable (18 porque es 2*9)
+
+    mov     ax,[dimensionBytes]
+    cmp     rdi,rax      
     je      muestroResultadoProducto
 
     mov     bx,[filaProd1]
     dec     bx
-    ;imul    bx,[coludimensionNum]
-    imul    bx,6
+    imul    bx,[coludimensionNum]
+    imul    bx,2
     mov     [desplazProducto],bx
 
     mov     bx,[coluProd1]
@@ -1274,8 +1291,8 @@ CalcDesplazamientoProd:
 
     mov     ax,[filaProd2]
     dec     ax
-    ;imul    ax,[coludimensionNum]
-    imul    ax,6
+    imul    ax,[coludimensionNum]
+    imul    ax,2
     mov     [desplazAlterno],ax
 
     mov     ax,[coluProd2]
@@ -1294,6 +1311,7 @@ CalcDesplazamientoProd:
 
     inc     word[coluProd1]
     inc     word[filaProd2]
+    pop     rcx
     jmp     CalcDesplazamientoProd
 copioCeldaEnMatrizResultado:
     mov     ax,[elementoProducto]
@@ -1316,24 +1334,55 @@ bajoFilaProducto:
     mov     qword[celdasLlenas],0
     jmp     CalcDesplazamientoProd
 muestroResultadoProducto:
-    cmp     rsi,18
-    je      chau
-    cmp     qword[contador],3
-    je      imprimoLineaBlanca
+    cmp     byte[opcionElegida],'6'
+    je      terminarElPrograma
+    mov     rcx,mensajeMatrizResult
+    sub     rsp,32
+    call    printf
+    add     rsp,32
+;esto esta bien, ver que onda que solo acepta 2 o 3 pasadas 
+    mov     word[coluProd1],1
+    mov     word[coluProd2],1
+    mov     word[filaProd1],1
+    mov     word[filaProd2],1
+    
+    
+muestroMatrizResultadoProd:
+    push    rsi
+    mov     rcx,2
+    lea     rsi,[pivote]
+    lea     rdi,[coludimensionNum]
+    repe    cmpsb   
+
+    pop     rsi
+    je      printf_newLine_Resultado
+
+    cmp     si, [dimensionBytes]
+    je      gg
+
     mov     rcx,debug
     mov     rdx,[matrizR + rsi]
     sub     rsp,32
     call    printf
     add     rsp,32
+
     add     rsi,2
-    add     qword[contador],1
-    jmp     muestroResultadoProducto
-imprimoLineaBlanca:
-    mov     rcx,newLine
+    add     word[pivote],1
+    jmp     muestroMatrizResultadoProd
+
+evaluarCuadradas:
+    mov     byte[sonCuadradas],'S'
+    mov     ax,[coludimensionNum]
+    mov     bx,[filadimensionNum]
+    cmp     ax,bx
+    je      cuadradasOk
+    mov     byte[sonCuadradas],'N'
+
+cuadradasOk:
+    ret
+errorNoSonCuadradas:
+    mov     rcx,mensajeNoCuadradas
     sub     rsp,32
-    call    printf
+    call    puts
     add     rsp,32
-    mov     qword[contador],0
-    jmp     muestroResultadoProducto
-chau:
-ret
+    jmp     gg
