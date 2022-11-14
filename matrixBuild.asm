@@ -18,6 +18,7 @@ section .data
     mensajeConsultElem  db  "Ingrese de que matriz quiere consultar el elemento: ",0
     mensajeIngPosicion  db  "Ingrese la posicion separada por un espacio: ",0
     mensajeIngresoNuevoValor    db    "Ingrese el nuevo valor a la matriz: ",0
+    parado  db  "aca parado",0
         ;***Errores
     msjErrorDimension   db  "Dimension ingresada invalida. Vuelva a ingresar.",10,0
     msjErrorIngreso     db  "Ingreso invalido. El numero debe estar entre -99 y 99",10,0
@@ -1055,6 +1056,10 @@ endProg:
     call    puts
     add     rsp,32
 terminarElPrograma:
+mov     rcx,parado
+sub     rsp,32
+call    puts
+add     rsp,32
 ret
 validarMatricesEnVector:
     sub     rsi,rsi
@@ -1300,10 +1305,10 @@ CalcDesplazamientoProd:
     imul    ax,2
     add     ax,[desplazAlterno]
 
-;mov     rcx,debug
+;mov     rcx,parado
 ;mov     rdx,[r8 + rax]
 ;sub     rsp,32
-;call    printf
+;call    puts
 ;add     rsp,32
     mov     rcx,[rdx + rbx]
     imul    rcx,[r8 + rax]
@@ -1311,7 +1316,7 @@ CalcDesplazamientoProd:
 
     inc     word[coluProd1]
     inc     word[filaProd2]
-    pop     rcx
+    ;pop     rcx
     jmp     CalcDesplazamientoProd
 copioCeldaEnMatrizResultado:
     mov     ax,[elementoProducto]
@@ -1345,7 +1350,10 @@ muestroResultadoProducto:
     mov     word[coluProd2],1
     mov     word[filaProd1],1
     mov     word[filaProd2],1
-    
+    mov     qword[celdasLlenas],0
+    mov     word[elementoProducto],0
+    sub     r8,r8
+    sub     rdx,rdx
     
 muestroMatrizResultadoProd:
     push    rsi
